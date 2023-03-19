@@ -31,16 +31,14 @@ contract SanctionsTokenTest is Test {
     token.banAddress(addr1);
     assertTrue(token.isBanned(addr1));
 
-    try token.transfer(address(0x456), 100) {
-      assertTrue(false, "should not allow transfer from banned address");
-    } catch Error(string memory reason) {
-      assertEq(reason, "SanctionedToken: Banned addresses cannot send or receive tokens");
-    }
+    vm.prank(addr1);
+    token.approve(address(this), 300);
 
+    vm.prank(address(this));
     try token.transferFrom(addr1, address(0x789), 100) {
-      assertTrue(false, "should not allow transfer from banned address");
+      fail("should not allow transfer from banned address");
     } catch Error(string memory reason) {
-      assertEq(reason, "SanctionedToken: Banned addresses cannot send or receive tokens");
+      assertEq(reason, "Sanctioned: Address cannot send the token");
     }
 
     token.unbanAddress(addr1);
@@ -55,7 +53,7 @@ contract SanctionsTokenTest is Test {
     token.mint(address(this), 1000);
 
     uint256 initialSupply = token.totalSupply();
-    token.burn(500);
+    token.burn(address(this), 500);
 
     uint256 newSupply = token.totalSupply();
     assertEq(newSupply, initialSupply - 500);
@@ -67,87 +65,65 @@ contract SanctionsTokenTest is Test {
     token.transfer(addr1, 500);
 
     token.banAddress(addr1);
-    token.approve(addr1, 500);
+    vm.prank(addr1);
+    token.approve(address(this), 500);
 
-    try token.burnFrom(addr1, 100) {
+    vm.prank(address(this));
+    try token.burn(addr1, 100) {
       fail("should not allow burning from a banned address");
     } catch Error(string memory reason) {
-      assertEq(reason, "SanctionedToken: Banned addresses cannot send or receive tokens");
+      assertEq(reason, "Sanctioned: Address cannot burn the token");
     }
   }
 
-  function testTokenBurningFromBannedAddress() public {
+  function testSendingTokensToBannedAddress() public {
     token.mint(address(this), 1000);
     address addr1 = address(0x123);
-    token.transfer(addr1, 500);
-
     token.banAddress(addr1);
-    token.approve(addr1, 500);
 
-    try token.burnFrom(addr1, 100) {
-      fail("should not allow burning from a banned address");
+    try token.transfer(addr1, 100) {
+      fail("should not allow sending tokens to a banned address");
     } catch Error(string memory reason) {
-      assertEq(reason, "SanctionedToken: Banned addresses cannot send or receive tokens");
+      assertEq(reason, "Sanctioned: Address cannot receive the token");
     }
   }
 
-  function testTokenBurningFromBannedAddress() public {
+  /// @notice Test `approve` and `transferFrom` when the recipient is a banned address.
+  function testApproveAndTransferFromToBannedAddress() public {
     token.mint(address(this), 1000);
+
     address addr1 = address(0x123);
-    token.transfer(addr1, 500);
-
     token.banAddress(addr1);
-    token.approve(addr1, 500);
+    token.approve(address(this), 100);
 
-    try token.burnFrom(addr1, 100) {
-      fail("should not allow burning from a banned address");
+    try token.transferFrom(address(this), addr1, 100) {
+      fail("should not allow transfer to a banned address");
     } catch Error(string memory reason) {
-      assertEq(reason, "SanctionedToken: Banned addresses cannot send or receive tokens");
+      assertEq(reason, "Sanctioned: Address cannot receive the token");
     }
   }
 
-  function testTokenBurningFromBannedAddress() public {
-    token.mint(address(this), 1000);
+  /// @notice Test `banAddress` and `unbanAddress` functions can only be called by the owner.
+  function testBanAndUnbanAddressRestrictions() public {
     address addr1 = address(0x123);
-    token.transfer(addr1, 500);
+    address nonOwner = address(0x456);
 
     token.banAddress(addr1);
-    token.approve(addr1, 500);
 
-    try token.burnFrom(addr1, 100) {
-      fail("should not allow burning from a banned address");
+    vm.prank(nonOwner);
+    try token.banAddress(addr1) {
+      fail("should not allow non-owner to ban an address");
     } catch Error(string memory reason) {
-      assertEq(reason, "SanctionedToken: Banned addresses cannot send or receive tokens");
+      assertEq(reason, "Ownable: caller is not the owner");
     }
-  }
 
-  function testTokenBurningFromBannedAddress() public {
-    token.mint(address(this), 1000);
-    address addr1 = address(0x123);
-    token.transfer(addr1, 500);
-
-    token.banAddress(addr1);
-    token.approve(addr1, 500);
-
-    try token.burnFrom(addr1, 100) {
-      fail("should not allow burning from a banned address");
+    vm.prank(address(this));
+    token.unbanAddress(addr1);
+    vm.prank(nonOwner);
+    try token.unbanAddress(addr1) {
+      fail("should not allow non-owner to unban an address");
     } catch Error(string memory reason) {
-      assertEq(reason, "SanctionedToken: Banned addresses cannot send or receive tokens");
-    }
-  }
-
-  function testTokenBurningFromBannedAddress() public {
-    token.mint(address(this), 1000);
-    address addr1 = address(0x123);
-    token.transfer(addr1, 500);
-
-    token.banAddress(addr1);
-    token.approve(addr1, 500);
-
-    try token.burnFrom(addr1, 100) {
-      fail("should not allow burning from a banned address");
-    } catch Error(string memory reason) {
-      assertEq(reason, "SanctionedToken: Banned addresses cannot send or receive tokens");
+      assertEq(reason, "Ownable: caller is not the owner");
     }
   }
 }
