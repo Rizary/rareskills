@@ -2,5 +2,13 @@
 src = 'src'
 out = 'out'
 libs = ['lib']
+solc = '0.8.19'
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
+
+[fmt]
+line_length = 95
+tab_width = 2
+wrap_comments = true
+number_underscore = 'thousands'
+multiline_func_header = 'params_first'
