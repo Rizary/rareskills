@@ -1,7 +1,7 @@
 set dotenv-load
 
-test_sanctions:
-    forge test --match-contract SanctionsTokenTest  --match-path test/SanctionsToken.t.sol -vvvvv
+test_presalenft:
+    forge test --match-contract PresaleNFTTest  --match-path test/PresaleNFT.t.sol -vvvvv
 
 test_bondingcurve:
     forge test --match-contract BondingCurveTokenTest  --match-path test/BondingCurveToken.t.sol -vvvvv

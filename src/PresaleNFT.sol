@@ -36,10 +36,11 @@ contract PresaleNFT is ERC165, ERC721, Ownable, ERC2981 {
   event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
   event OwnershipTransferCompleted(address indexed previousOwner, address indexed newOwner);
 
-  constructor(address _token) ERC721("Presale NFT", "PNFT") {
+  constructor() ERC721("Presale NFT", "PNFT") {
     PRICE = 0.07 ether;
     DISCOUNTED_PRICE = 0.045 ether;
     totalSupply = 1;
+    _owner = msg.sender;
     _setDefaultRoyalty(msg.sender, 250);
   }
 
@@ -82,9 +83,9 @@ contract PresaleNFT is ERC165, ERC721, Ownable, ERC2981 {
     bytes32[] calldata _merkleProof
   ) external payable {
     require(msg.sender == tx.origin, "bot is not allowed");
-    require(_verifyProof(msg.sender, _merkleProof), "address or amount is wrong");
-    require(bitmap.get(_index), "address cannot minted presale");
     require(msg.value == DISCOUNTED_PRICE, "wrong price");
+    require(_verifyProof(msg.sender, _merkleProof), "address is not recognized");
+    require(bitmap.get(_index), "address cannot minted presale");
 
     uint256 _totalSupply = totalSupply;
 
@@ -125,7 +126,7 @@ contract PresaleNFT is ERC165, ERC721, Ownable, ERC2981 {
     address _who,
     bytes32[] memory _merkleProof
   ) internal view returns (bool) {
-    bytes32 node = keccak256(abi.encodePacked(_who));
+    bytes32 node = bytes32(bytes20(_who));
     return MerkleProof.verify(_merkleProof, merkleRoot, node);
   }
 
@@ -160,12 +161,6 @@ contract PresaleNFT is ERC165, ERC721, Ownable, ERC2981 {
   /// @return The address of the pending owner.
   function pendingOwner() public view returns (address) {
     return _pendingOwner;
-  }
-
-  /// @notice Throws if called by any account other than the current owner.
-  modifier onlyOwner() override {
-    require(_owner == msg.sender, "SecureOwnable: caller is not the owner");
-    _;
   }
 
   /// @notice Initiates a transfer of ownership to a new address.

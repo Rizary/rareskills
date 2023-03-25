@@ -3,23 +3,40 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import {PresaleNFT} from "../src/PresaleNFT.sol";
+import {Merkle} from "@murky/src/Merkle.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 contract PresaleNFTTest is Test {
   PresaleNFT nft;
   Merkle merkle;
+  address[] private addresses =
+    [address(0x123), address(0x234), address(0x456), address(0x567), address(0x678)];
+  address addr6 = address(0x789);
+  bytes32 private merkleRootTest;
+  bytes32[] public data = new bytes32[](5);
 
-  function beforeEach() public {
-    nft = new PresaleNFT(address(this));
+  function setUp() public {
+    nft = new PresaleNFT();
     merkle = new Merkle();
-    nft.setMerkleRoot(merkle.getRoot());
+    for (uint256 i = 0; i < addresses.length; i++) {
+      data[i] = bytes32(bytes20(addresses[i]));
+    }
+    nft._addToPresaleList(addresses[0], 3, uint256(uint160(addresses[0]))); // 3 NFT
+    nft._addToPresaleList(addresses[1], 2, uint256(uint160(addresses[1]))); // 2 NFT
+    nft._addToPresaleList(addresses[2], 1, uint256(uint160(addresses[2]))); // 1 NFT
+    nft._addToPresaleList(addresses[3], 3, uint256(uint160(addresses[3]))); // 3 NFT
+    nft._addToPresaleList(addresses[4], 1, uint256(uint160(addresses[4]))); // 1 NFT
+
+    merkleRootTest = merkle.getRoot(data);
+    nft.setMerkleRoot(merkleRootTest);
   }
 
   function testPublicMint() public {
     uint256 initialSupply = nft.totalSupply();
     uint256 tokenPrice = nft.PRICE();
 
-    payable(address(nft)).transfer(tokenPrice);
-
+    vm.prank(addr6, addr6);
+    vm.deal(addr6, tokenPrice);
     nft.publicMint{value: tokenPrice}();
 
     uint256 newSupply = nft.totalSupply();
@@ -30,93 +47,99 @@ contract PresaleNFTTest is Test {
     uint256 initialSupply = nft.totalSupply();
     uint256 tokenPrice = nft.PRICE();
 
-    payable(address(nft)).transfer(tokenPrice);
-
-    address(nft).call{value: tokenPrice}(abi.encodeWithSignature("publicMint()"));
+    vm.prank(addresses[0], addresses[0]);
+    vm.deal(addresses[0], tokenPrice);
+    nft.publicMint{value: tokenPrice}();
+    vm.expectRevert();
   }
 
-  function testFailPublicMintWrongPrice() public {
-    uint256 tokenPrice = nft.PRICE();
+  function testPublicMintWrongPrice() public {
+    uint256 tokenPrice = nft.DISCOUNTED_PRICE();
 
-    payable(address(nft)).transfer(tokenPrice);
-
-    nft.publicMint{value: tokenPrice / 2}();
+    vm.prank(addresses[0], addresses[0]);
+    vm.deal(addresses[0], tokenPrice);
+    try nft.publicMint{value: tokenPrice}() {
+      fail("public mint should failed");
+    } catch Error(string memory reason) {
+      assertEq(reason, "wrong price");
+    }
   }
 
   function testPresaleMint() public {
-    address validAddress = address(0x1);
-    uint256 amount = 5;
-    uint256 index = uint256(uint160(validAddress));
-
-    nft._addToPresaleList(validAddress, amount, index);
-
-    bytes32[] memory proof = merkle.getProof(validAddress);
+    uint256 amount = 1;
+    uint256 index = uint256(uint160(addresses[2]));
+    bytes32[] memory proof = merkle.getProof(data, 2);
 
     uint256 initialSupply = nft.totalSupply();
     uint256 discountedPrice = nft.DISCOUNTED_PRICE();
 
-    payable(address(nft)).transfer(discountedPrice);
-
-    nft.presale(amount, index, proof){value: discountedPrice}();
+    vm.prank(addresses[2], addresses[2]);
+    vm.deal(addresses[2], discountedPrice);
+    nft.presale{value: discountedPrice}(amount, index, proof);
 
     uint256 newSupply = nft.totalSupply();
     assertEq(newSupply, initialSupply + 1);
   }
 
-  function testFailPresaleMintBot() public {
-    address validAddress = address(0x1);
-    uint256 amount = 5;
+  function testPresaleMintBot() public {
+    address validAddress = addresses[0];
+    uint256 amount = 3;
     uint256 index = uint256(uint160(validAddress));
-
-    nft._addToPresaleList(validAddress, amount, index);
-
-    bytes32[] memory proof = merkle.getProof(validAddress);
+    bytes32[] memory proof = merkle.getProof(data, 1);
 
     uint256 discountedPrice = nft.DISCOUNTED_PRICE();
 
-    payable(address(nft)).transfer(discountedPrice);
-
-    address(nft).call{value: discountedPrice}(
-      abi.encodeWithSignature("presale(uint256,uint256,bytes32[])", amount, index, proof)
-    );
+    vm.prank(address(this), validAddress);
+    vm.deal(address(nft), discountedPrice);
+    try nft.presale{value: discountedPrice}(amount, index, proof) {
+      fail("presale mint should failed");
+    } catch Error(string memory reason) {
+      assertEq(reason, "bot is not allowed");
+    }
   }
 
-  function testFailPresaleMintWrongPrice() public {
-    address validAddress = address(0x1);
-    uint256 amount = 5;
+  function testPresaleMintWrongPrice() public {
+    address validAddress = addresses[3];
+    uint256 amount = 3;
     uint256 index = uint256(uint160(validAddress));
+    bytes32[] memory proof = merkle.getProof(data, 4);
 
-    nft._addToPresaleList(validAddress, amount, index);
+    uint256 normalPrice = nft.PRICE();
 
-    bytes32[] memory proof = merkle.getProof(validAddress);
+    vm.prank(validAddress, validAddress);
+    vm.deal(validAddress, normalPrice);
 
-    uint256 discountedPrice = nft.DISCOUNTED_PRICE();
+    try nft.presale{value: normalPrice}(amount, index, proof) {
+      fail("public mint should failed");
+    } catch Error(string memory reason) {
+      assertEq(reason, "wrong price");
+    }
+  }
 
-    payable(address(nft)).transfer(discountedPrice);
-
-    nft.presale(amount, index, proof){value: discountedPrice / 2}();
+  function _verifyProof(
+    address _who,
+    bytes32[] memory _merkleProof,
+    bytes32 merkleRoot
+  ) internal view returns (bool) {
+    bytes32 node = bytes32(bytes20(_who));
+    return MerkleProof.verify(_merkleProof, merkleRoot, node);
   }
 
   function testVerifyProof() public {
-    address validAddress = address(0x1);
-    uint256 amount = 5;
-    uint256 index = uint256(uint160(validAddress));
+    address validAddress = addresses[3];
+    bytes32[] memory proof = merkle.getProof(data, 3);
 
-    nft._addToPresaleList(validAddress, amount, index);
+    bool proofIsValid = _verifyProof(validAddress, proof, merkleRootTest);
 
-    bytes32[] memory proof = merkle.getProof(validAddress);
-
-    bool proofIsValid = nft._verifyProof(validAddress, proof);
-
-    assertTrue(proofIsValid);
+    assertEq(true, proofIsValid);
   }
 
-  function testFailVerifyProof() public {
+  function testVerifyWrongProof() public {
     address invalidAddress = address(0x2);
-    bytes32[] memory proof = merkle.getProof(invalidAddress);
+    bytes32[] memory proof = merkle.getProof(data, 1);
 
-    bool proofIsValid = nft._verifyProof(invalidAddress, proof);
+    bool proofIsValid = _verifyProof(invalidAddress, proof, merkleRootTest);
 
-    assertFalse(proofIsValid);
+    assertEq(false, proofIsValid);
   }
 }
