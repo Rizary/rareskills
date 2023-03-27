@@ -22,7 +22,7 @@ contract StakingToken is ERC20, Pausable, Ownable {
   }
 
   /// @notice minting token
-  function mint(address to, uint256 amount) public onlyOwner {
+  function mint(address to, uint256 amount) public {
     _mint(to, amount);
   }
 

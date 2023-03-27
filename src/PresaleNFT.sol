@@ -60,11 +60,12 @@ contract PresaleNFT is ERC165, ERC721, Ownable, ERC2981 {
     require(_totalMinted < 2, "limit reached");
     require(msg.value == PRICE, "wrong price");
 
-    unchecked {
-      _publicMintedCount[msg.sender]++;
-    }
-    _owners[_totalSupply] = msg.sender;
-    emit Transfer(address(0), msg.sender, _totalSupply);
+    // unchecked {
+    //   _publicMintedCount[msg.sender]++;
+    // }
+    // _owners[_totalSupply] = msg.sender;
+    // emit Transfer(address(0), msg.sender, _totalSupply);
+    super._mint(msg.sender, totalSupply);
 
     unchecked {
       _totalSupply++;
@@ -133,7 +134,6 @@ contract PresaleNFT is ERC165, ERC721, Ownable, ERC2981 {
   /**
    * @dev See {IERC165-supportsInterface}.
    */
-
   function supportsInterface(bytes4 interfaceId)
     public
     view
