@@ -12,5 +12,11 @@ test_stakingmanager:
 test_stakingtoken:
     forge test --match-contract StakingTokenTest  --match-path test/StakingToken.t.sol -vvvvv
 
+test_overmint1:
+    forge test --match-contract Overmint1Test  --match-path test/Overmint1.t.sol -vvvvv
+
+test_overmint2:
+    forge test --match-contract Overmint2Test  --match-path test/Overmint2.t.sol -vvvvv
+
 test_all:
     forge test -vvvvv
