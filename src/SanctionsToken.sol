@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC1363} from "@erc1363-payable-token/contracts/token/ERC1363/ERC1363.sol";
@@ -46,7 +46,7 @@ contract SanctionsToken is ERC1363, IERC1363Spender, Ownable {
   /// @notice Bans the address from sending and receiving tokens
   /// @dev Only owner can call this function
   /// @param account an address that will be banned
-  function banAddress(address account) public onlyOwner {
+  function banAddress(address account) external onlyOwner {
     require(!_bannedAddress[account], "BanAddress: Address is already banned");
     _bannedAddress[account] = true;
     emit AddressBanned(account);
@@ -55,7 +55,7 @@ contract SanctionsToken is ERC1363, IERC1363Spender, Ownable {
   /// @notice Unbans the address from sending and receiving tokens
   /// @dev Only owner can call this function
   /// @param account an address that will be unbanned
-  function unbanAddress(address account) public onlyOwner {
+  function unbanAddress(address account) external onlyOwner {
     require(_bannedAddress[account], "unbanAddress: Address is not banned");
     _bannedAddress[account] = false;
     emit AddressUnbanned(account);
@@ -64,7 +64,7 @@ contract SanctionsToken is ERC1363, IERC1363Spender, Ownable {
   /// @notice Checks if the given address is banned.
   /// @param account an address to be checked
   /// @return True if the address is banned, False otherwise
-  function isBanned(address account) public view returns (bool) {
+  function isBanned(address account) external view returns (bool) {
     return _bannedAddress[account];
   }
 
@@ -73,11 +73,7 @@ contract SanctionsToken is ERC1363, IERC1363Spender, Ownable {
   /// @param from The address sending the tokens
   /// @param to The address receiving the tokens
   /// @param amount The number of tokens to be transferred
-  function _beforeTokenTransfer(
-    address from,
-    address to,
-    uint256 amount
-  ) internal virtual override {
+  function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
     require(!isBanned(from), "Sanctioned: Address cannot send the token");
     require(!isBanned(to), "Sanctioned: Address cannot receive the token");
     super._beforeTokenTransfer(from, to, amount);
